@@ -34,6 +34,9 @@ Each phase ended with `ruff check`, `ruff format --check`, `mypy --strict` and `
 - [x] `.github/workflows/ci.yml` (lint, mypy, tests on 3.12/3.13, PostgreSQL migrations, Docker build)
 - [x] `README.md`
 
-## Not verified locally
-- Docker image build and Compose stack (Docker daemon was not running); covered by the CI `docker` job.
-- PostgreSQL and Redis at runtime (tests use SQLite and fakes); PostgreSQL is covered by the CI `postgres` job.
+## Verification status
+- Verified in CI (run #1 passed): lint, `mypy --strict`, tests on Python 3.12 and 3.13,
+  migrations plus a worker pass against PostgreSQL 17, and the Docker image build.
+- Verified locally: full test suite on Python 3.14, a live API server and a real worker probe.
+- Not yet verified anywhere: the full Docker Compose stack and Redis-backed locks against a real
+  Redis server (tests use a fake Redis client).
