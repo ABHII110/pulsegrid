@@ -58,3 +58,30 @@ def test_secrets_are_masked_in_repr(tmp_path: Path) -> None:
     settings = make_settings(tmp_path, webhook_secret=SecretStr("super-secret-value"))
 
     assert "super-secret-value" not in repr(settings)
+
+
+@pytest.mark.parametrize(
+    ("given", "expected"),
+    [
+        ("postgres://u:p@db:5432/app", "postgresql+asyncpg://u:p@db:5432/app"),
+        ("postgresql://u:p@db/app", "postgresql+asyncpg://u:p@db/app"),
+        ("postgresql+asyncpg://u:p@db/app", "postgresql+asyncpg://u:p@db/app"),
+        ("sqlite+aiosqlite:////tmp/pulsegrid.db", "sqlite+aiosqlite:////tmp/pulsegrid.db"),
+    ],
+)
+def test_database_url_gets_async_driver(
+    monkeypatch: pytest.MonkeyPatch, given: str, expected: str
+) -> None:
+    monkeypatch.setenv("PULSEGRID_DATABASE_URL", given)
+
+    assert Settings(_env_file=None).database_url.get_secret_value() == expected
+
+
+def test_hosting_flags_default_off() -> None:
+    settings = Settings(_env_file=None)
+
+    assert (settings.expose_docs, settings.embedded_worker, settings.migrate_on_start) == (
+        False,
+        False,
+        False,
+    )

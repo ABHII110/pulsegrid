@@ -123,6 +123,8 @@ def serve(
     from pulsegrid.api.app import create_app
 
     settings = _settings()
+    if settings.migrate_on_start:
+        migrate.upgrade(settings)
     try:
         api = create_app(settings)
     except PulseGridError as exc:

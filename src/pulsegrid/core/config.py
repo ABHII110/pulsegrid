@@ -44,6 +44,12 @@ class Settings(BaseSettings):
     api_key: SecretStr | None = None
     api_host: str = "127.0.0.1"
     api_port: int = Field(default=8000, ge=1, le=65535)
+    # Serve /docs and /openapi.json even in production (the landing page links to them).
+    expose_docs: bool = False
+    # Run the probe scheduler inside the API process (single-service hosting).
+    embedded_worker: bool = False
+    # Apply database migrations before `pulsegrid serve` starts accepting requests.
+    migrate_on_start: bool = False
 
     allow_private_targets: bool = False
     probe_user_agent: str = Field(default="PulseGrid/0.1", min_length=1, max_length=200)
@@ -55,6 +61,17 @@ class Settings(BaseSettings):
     webhook_url: HttpUrl | None = None
     webhook_secret: SecretStr | None = None
     webhook_timeout_seconds: float = Field(default=5.0, gt=0, le=60)
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def _use_async_postgres_driver(cls, value: object) -> object:
+        """Accept plain ``postgres://`` URLs (as hosting providers hand out) by adding asyncpg."""
+        raw = value.get_secret_value() if isinstance(value, SecretStr) else value
+        if isinstance(raw, str):
+            for prefix in ("postgres://", "postgresql://"):
+                if raw.startswith(prefix):
+                    return "postgresql+asyncpg://" + raw.removeprefix(prefix)
+        return value
 
     @field_validator("redis_url", "api_key", "webhook_secret", mode="before")
     @classmethod

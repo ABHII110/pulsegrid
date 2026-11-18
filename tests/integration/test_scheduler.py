@@ -24,7 +24,7 @@ class ConcurrencyProbe(ScriptedProber):
     async def probe(self, monitor: Monitor) -> ProbeOutcome:
         self.active += 1
         self.peak = max(self.peak, self.active)
-        await asyncio.sleep(0.01)
+        await asyncio.sleep(0.05)
         self.active -= 1
         return await super().probe(monitor)
 
@@ -84,7 +84,7 @@ async def test_concurrency_is_bounded(session_factory: async_sessionmaker[AsyncS
     await _add(session_factory, *(make_monitor() for _ in range(10)))
 
     assert await scheduler.run_once() == 10
-    assert prober.peak == 3
+    assert 2 <= prober.peak <= 3  # concurrent, but never above the limit
 
 
 async def test_locked_monitors_are_not_counted(

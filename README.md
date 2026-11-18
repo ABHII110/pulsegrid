@@ -44,6 +44,21 @@ docker compose up --build -d
 Compose runs migrations once, then starts the API on `127.0.0.1:8000` and a worker. Scale workers
 with `docker compose up -d --scale worker=3`; Redis locks keep them from probing the same monitor.
 
+## Deploying to Render (free, single service)
+
+`render.yaml` describes one free Docker web service that runs the API, the landing page and the
+probe worker together (`PULSEGRID_EMBEDDED_WORKER=true`), applies migrations on start, keeps
+`/docs` public and generates the API key for you.
+
+1. Sign in at [render.com](https://render.com) with GitHub and give Render access to this repository.
+2. **New → Blueprint**, pick the repository, and apply it.
+3. Open the service's **Environment** tab to copy the generated `PULSEGRID_API_KEY`.
+
+Free-plan trade-offs: the service sleeps when idle (probing pauses and the next visit loads slowly),
+and the SQLite database lives on temporary disk, so monitors reset on every restart or deploy. For
+durable data, create a Render PostgreSQL database and set `PULSEGRID_DATABASE_URL` to its connection
+string; plain `postgres://` URLs are accepted.
+
 ## Using the API
 
 Every `/api/v1` route needs the `X-API-Key` header.
@@ -109,6 +124,9 @@ See [.env.example](.env.example) for the full list with defaults. Key ones:
 | `WORKER_CONCURRENCY` | `20` | Max probes in flight per worker |
 | `WEBHOOK_URL`, `WEBHOOK_SECRET` | unset | Incident webhooks |
 | `ENVIRONMENT` | `development` | `production` hides `/docs` and `/openapi.json` |
+| `EXPOSE_DOCS` | `false` | Keep the docs public in production |
+| `EMBEDDED_WORKER` | `false` | Run the worker inside the API process |
+| `MIGRATE_ON_START` | `false` | Apply migrations when `serve` starts |
 
 ## Landing page
 

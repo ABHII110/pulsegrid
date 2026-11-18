@@ -1,0 +1,34 @@
+# Render Blueprint: one free web service running the API, landing page and probe worker.
+# Deploy: Render dashboard -> New -> Blueprint -> pick this repository.
+#
+# Free-plan trade-offs:
+# - The service sleeps after a period without visitors; the next visit wakes it (slow first load)
+#   and probing pauses while it sleeps.
+# - SQLite lives on the container's temporary disk, so monitors and history reset whenever the
+#   service restarts or redeploys. For durable data, create a Render PostgreSQL database and set
+#   PULSEGRID_DATABASE_URL to its connection string (postgres:// URLs are accepted as-is).
+services:
+  - type: web
+    name: pulsegrid
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: PULSEGRID_ENVIRONMENT
+        value: production
+      - key: PULSEGRID_API_KEY
+        generateValue: true
+      - key: PULSEGRID_API_PORT
+        value: "10000"
+      - key: PULSEGRID_DATABASE_URL
+        value: sqlite+aiosqlite:////tmp/pulsegrid.db
+      - key: PULSEGRID_MIGRATE_ON_START
+        value: "true"
+      - key: PULSEGRID_EMBEDDED_WORKER
+        value: "true"
+      - key: PULSEGRID_EXPOSE_DOCS
+        value: "true"
+      - key: PULSEGRID_LOG_JSON
+        value: "true"

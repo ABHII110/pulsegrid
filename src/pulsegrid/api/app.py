@@ -1,5 +1,6 @@
 """FastAPI application factory."""
 
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -12,8 +13,11 @@ from pulsegrid.api.routes import health, incidents, monitors, site
 from pulsegrid.container import Container, build_container
 from pulsegrid.core.config import Environment, Settings
 from pulsegrid.core.exceptions import ConfigurationError
+from pulsegrid.core.logging import get_logger
 
 API_PREFIX = "/api/v1"
+
+logger = get_logger(__name__)
 
 
 def create_app(settings: Settings, *, container: Container | None = None) -> FastAPI:
@@ -33,25 +37,35 @@ def create_app(settings: Settings, *, container: Container | None = None) -> Fas
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        if container is not None:
-            yield
-            return
-        owned = build_container(settings)
-        app.state.container = owned
+        owned = None
+        active = container
+        if active is None:
+            owned = active = build_container(settings)
+            app.state.container = owned
+
+        stop = asyncio.Event()
+        worker = None
+        if settings.embedded_worker:
+            logger.info("embedded_worker_starting")
+            worker = asyncio.create_task(active.scheduler.run_forever(stop))
         try:
             yield
         finally:
-            await owned.aclose()
+            if worker is not None:
+                stop.set()
+                await worker
+            if owned is not None:
+                await owned.aclose()
 
-    is_production = settings.environment is Environment.PRODUCTION
+    show_docs = settings.environment is not Environment.PRODUCTION or settings.expose_docs
     app = FastAPI(
         title="PulseGrid",
         version=__version__,
         summary="Uptime monitoring: scheduled probes, incidents, uptime reports and webhooks.",
         lifespan=lifespan,
-        docs_url=None if is_production else "/docs",
+        docs_url="/docs" if show_docs else None,
         redoc_url=None,
-        openapi_url=None if is_production else "/openapi.json",
+        openapi_url="/openapi.json" if show_docs else None,
     )
     if container is not None:
         app.state.container = container

@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
@@ -250,6 +251,36 @@ async def test_docs_hidden_in_production(tmp_path: Path, container: Container) -
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
         assert (await client.get("/docs")).status_code == 404
         assert (await client.get("/openapi.json")).status_code == 404
+
+
+async def test_docs_can_be_exposed_in_production(tmp_path: Path, container: Container) -> None:
+    settings = make_settings(tmp_path, environment=Environment.PRODUCTION, expose_docs=True)
+    app = create_app(settings, container=container)
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        assert (await client.get("/docs")).status_code == 200
+        assert (await client.get("/openapi.json")).status_code == 200
+
+
+async def test_embedded_worker_runs_for_app_lifetime(
+    tmp_path: Path, container: Container, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    events: list[str] = []
+
+    async def fake_run_forever(stop: asyncio.Event) -> None:
+        events.append("started")
+        await stop.wait()
+        events.append("stopped")
+
+    monkeypatch.setattr(container.scheduler, "run_forever", fake_run_forever)
+    app = create_app(make_settings(tmp_path, embedded_worker=True), container=container)
+
+    async with app.router.lifespan_context(app):
+        await asyncio.sleep(0)
+        assert events == ["started"]
+
+    assert events == ["started", "stopped"]
+    assert not container.http_client.is_closed
 
 
 async def test_lifespan_builds_and_closes_own_container(tmp_path: Path) -> None:

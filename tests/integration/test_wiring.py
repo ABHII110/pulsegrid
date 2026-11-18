@@ -1,4 +1,5 @@
 import asyncio
+import sqlite3
 from pathlib import Path
 from typing import Any
 
@@ -82,3 +83,20 @@ def test_serve_passes_settings_to_uvicorn(monkeypatch: pytest.MonkeyPatch, tmp_p
     assert calls[0]["host"] == "127.0.0.1"
     assert calls[0]["port"] == 9100
     assert calls[0]["access_log"] is False
+
+
+def test_serve_migrates_on_start_when_enabled(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(uvicorn, "run", lambda app, **kwargs: None)
+    db_file = tmp_path / "render.db"
+    monkeypatch.setenv("PULSEGRID_API_KEY", "k" * 32)
+    monkeypatch.setenv("PULSEGRID_DATABASE_URL", f"sqlite+aiosqlite:///{db_file.as_posix()}")
+    monkeypatch.setenv("PULSEGRID_MIGRATE_ON_START", "true")
+
+    result = CliRunner().invoke(cli_main.app, ["serve"])
+
+    assert result.exit_code == 0, result.output
+    with sqlite3.connect(db_file) as connection:
+        tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master")}
+    assert {"monitors", "check_results", "incidents"} <= tables
