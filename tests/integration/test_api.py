@@ -72,6 +72,17 @@ def test_api_requires_api_key(tmp_path: Path) -> None:
         create_app(make_settings(tmp_path, api_key=None))
 
 
+async def test_landing_page_is_public_html(client: httpx.AsyncClient) -> None:
+    response = await client.get("/")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    assert '<canvas class="planet-canvas"' in response.text
+    assert "PulseGrid" in response.text
+    openapi = (await client.get("/openapi.json")).json()
+    assert "/" not in openapi["paths"]
+
+
 async def test_health_endpoints_need_no_auth(client: httpx.AsyncClient) -> None:
     assert (await client.get("/healthz")).json() == {"status": "ok"}
     assert (await client.get("/readyz")).json() == {"status": "ready"}

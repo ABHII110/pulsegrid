@@ -21,8 +21,11 @@ cp .env.example .env            # then set PULSEGRID_API_KEY (see below)
 uv run pulsegrid db upgrade
 uv run pulsegrid monitors add example https://example.com --interval 60
 uv run pulsegrid worker         # in one terminal
-uv run pulsegrid serve          # in another; docs at http://127.0.0.1:8000/docs
+uv run pulsegrid serve          # in another terminal
 ```
+
+Then open http://127.0.0.1:8000 for the landing page or http://127.0.0.1:8000/docs for the
+interactive API docs.
 
 Generate an API key:
 
@@ -64,6 +67,7 @@ curl -H "X-API-Key: $PULSEGRID_API_KEY" "http://127.0.0.1:8000/api/v1/monitors/<
 | GET | `/api/v1/monitors/{id}/incidents` | Incidents for one monitor |
 | GET | `/api/v1/incidents` | All incidents (`open_only`) |
 | GET | `/healthz`, `/readyz` | Liveness and database readiness (no auth) |
+| GET | `/` | Landing page (no auth) |
 
 Errors always look like `{"error": {"code", "message", "request_id"}}`; status codes are 401, 404,
 409, 422, 503 or 500.
@@ -106,6 +110,15 @@ See [.env.example](.env.example) for the full list with defaults. Key ones:
 | `WEBHOOK_URL`, `WEBHOOK_SECRET` | unset | Incident webhooks |
 | `ENVIRONMENT` | `development` | `production` hides `/docs` and `/openapi.json` |
 
+## Landing page
+
+`GET /` serves a single self-contained page (`src/pulsegrid/web/index.html`) with a WebGL planet
+built on Three.js r0.143. The golden pings on the globe stand for probes. It loads Three.js, Lenis
+and Inter from public CDNs and the planet models and cloud texture from an external storage
+bucket, so it needs internet access in the browser. The page content still shows if WebGL or
+those downloads fail. In `production` the page's links to `/docs` and `/openapi.json` return 404
+because those routes are disabled there.
+
 ## Security notes
 
 - No secrets in code; keys and URLs with credentials are `SecretStr` and never logged.
@@ -147,6 +160,7 @@ src/pulsegrid/
   workers/       scheduler + worker process runner
   api/           FastAPI app, routes, auth, middleware, error mapping
   cli/           Typer commands
+  web/           landing page (single HTML file: Three.js planet, served at /)
   container.py   composition root (dependency injection)
 ```
 

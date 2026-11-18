@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from pulsegrid import __version__
 from pulsegrid.api.errors import register_exception_handlers
 from pulsegrid.api.middleware import RequestContextMiddleware
-from pulsegrid.api.routes import health, incidents, monitors
+from pulsegrid.api.routes import health, incidents, monitors, site
 from pulsegrid.container import Container, build_container
 from pulsegrid.core.config import Environment, Settings
 from pulsegrid.core.exceptions import ConfigurationError
@@ -58,6 +58,7 @@ def create_app(settings: Settings, *, container: Container | None = None) -> Fas
 
     app.add_middleware(RequestContextMiddleware)
     register_exception_handlers(app)
+    app.include_router(site.router)
     app.include_router(health.router)
     app.include_router(monitors.router, prefix=API_PREFIX)
     app.include_router(incidents.router, prefix=API_PREFIX)
