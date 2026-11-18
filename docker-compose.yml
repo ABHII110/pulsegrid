@@ -1,0 +1,69 @@
+# Full stack: PostgreSQL + Redis + one-shot migrations + API + worker.
+# Requires a .env file with at least POSTGRES_PASSWORD and PULSEGRID_API_KEY (see .env.example).
+x-app: &app
+  build: .
+  env_file: .env
+  environment:
+    PULSEGRID_DATABASE_URL: postgresql+asyncpg://pulsegrid:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/pulsegrid
+    PULSEGRID_REDIS_URL: redis://redis:6379/0
+    PULSEGRID_ENVIRONMENT: production
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: pulsegrid
+      POSTGRES_DB: pulsegrid
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pulsegrid -d pulsegrid"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  migrate:
+    <<: *app
+    command: ["db", "upgrade"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *app
+    command: ["serve"]
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  worker:
+    <<: *app
+    command: ["worker"]
+    healthcheck:
+      disable: true
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+volumes:
+  pgdata:
