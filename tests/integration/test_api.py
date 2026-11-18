@@ -80,6 +80,7 @@ async def test_landing_page_is_public_html(client: httpx.AsyncClient) -> None:
     assert response.headers["content-type"].startswith("text/html")
     assert '<canvas class="planet-canvas"' in response.text
     assert "PulseGrid" in response.text
+    assert "data-explore-open" in response.text  # space explorer entry point
     openapi = (await client.get("/openapi.json")).json()
     assert "/" not in openapi["paths"]
 

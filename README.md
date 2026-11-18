@@ -134,7 +134,14 @@ See [.env.example](.env.example) for the full list with defaults. Key ones:
 built on Three.js r0.143. The golden pings on the globe stand for probes. It loads Three.js, Lenis
 and Inter from public CDNs and the planet models and cloud texture from an external storage
 bucket, so it needs internet access in the browser. The page content still shows if WebGL or
-those downloads fail. In `production` the page's links to `/docs` and `/openapi.json` return 404
+those downloads fail.
+
+**Explore space** (the button bottom-right, or the nav link on wide screens) turns the background
+into an interactive map: scroll or pinch to zoom, drag to rotate, Esc to exit. Zooming in reveals
+continent, country and city names (placed to about 1°, so roughly 100 km); zooming out shows a
+stylised solar system and then a Milky Way model with a "You are here" marker. A HUD shows the
+altitude or range, latitude/longitude under the reticle, and a zoom rail with quick-jump stops.
+Distances outside Earth orbit are illustrative, not to scale. In `production` the page's links to `/docs` and `/openapi.json` return 404
 because those routes are disabled there.
 
 ## Security notes
